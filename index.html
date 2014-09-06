@@ -1,0 +1,86 @@
+<html>
+<head>
+	<script src="https://cdn.firebase.com/js/client/1.0.21/firebase.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+</head>
+<body>
+	<h1>App</h1>
+	<p class='userMsg'></p>
+	<p class='dob'></p>
+	<p class='age'></p>
+	<script>
+  		var fb = new Firebase("https://blinding-fire-3623.firebaseio.com/");
+		var map = {
+			username: 'user',
+			firstname: 'firstname',
+			lastname: 'lastname',
+			userMsg: ['firstname', 'lastname', function(firstname, lastname) {
+				return 'Welcome ' + firstname + ' ' + lastname;
+			}],
+			dob: 'dob',
+			age: ['dob', function(dob) {
+				return 'I dunno you work it out using ' + dob;
+			}]
+		};
+		var dynamic = {};
+		var viewModel = {};
+		Object.keys(map).forEach(function(item) {
+			if(typeof map[item] === 'string') {
+				fb.child(item).once('value', function(snapshot) {
+					viewModel[item] = snapshot.val();
+				});
+			} else {
+				var prop = item;
+				var cb = map[item].pop();
+				var deps = map[item];
+				deps.forEach(function(dep) {
+					dynamic[dep] = {
+						prop: prop,
+						deps: deps,
+						cb: cb
+					};
+				});
+			}
+		});
+		function updateAllDynamics() {
+			var processedDepSignatures = [];
+			Object.keys(dynamic).forEach(function(triggerDep) {
+				var sig = dynamic[triggerDep].prop;
+				if(processedDepSignatures.indexOf(sig) < 0) {
+					updateDynamic(dynamic[triggerDep]);
+					processedDepSignatures.push(sig);
+				}
+			});
+		}
+		function updateDynamic(dyn) {
+			var depFetches = [];
+			var cb = dyn.cb;
+			var prop = dyn.prop;
+			var deps = dyn.deps;
+			deps.forEach(function(dep) {
+				var def = $.Deferred();
+				fb.child(dep).once('value', function(snapshot) {
+					def.resolve(snapshot.val());
+				});
+				depFetches.push(def);
+			});
+			$.when.apply($.when, depFetches).done(function() {
+				viewModel[prop] = cb.apply(cb, arguments);
+			});			
+		}
+		updateAllDynamics();
+		fb.on('child_changed', function(snapshot) {
+			viewModel[snapshot.name()] = snapshot.val();
+		});
+		Object.observe(viewModel, function(changes) {
+			changes.forEach(function(change) {
+				var prop = change.name;
+				if(dynamic[prop]) {
+					updateDynamic(dynamic[prop]);
+				}
+				$('.'+prop).text(viewModel[prop]);
+			});
+		});
+	</script>
+</body>
+</html>
