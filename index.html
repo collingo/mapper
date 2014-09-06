@@ -73,10 +73,15 @@
 			viewModel[snapshot.name()] = snapshot.val();
 		});
 		Object.observe(viewModel, function(changes) {
+			var processedDepSignatures = [];
 			changes.forEach(function(change) {
 				var prop = change.name;
 				if(dynamic[prop]) {
-					updateDynamic(dynamic[prop]);
+					var sig = dynamic[prop].prop;
+					if(processedDepSignatures.indexOf(sig) < 0) {
+						updateDynamic(dynamic[prop]);
+						processedDepSignatures.push(sig);
+					}
 				}
 				$('.'+prop).text(viewModel[prop]);
 			});
