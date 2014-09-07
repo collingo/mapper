@@ -9,6 +9,7 @@
 	<p class='userMsg'></p>
 	<p class='dob'></p>
 	<p class='age'></p>
+	<p class='starSign'></p>
 	<script>
   		var fb = new Firebase("https://blinding-fire-3623.firebaseio.com/");
 		var map = {
@@ -20,7 +21,15 @@
 			}],
 			dob: 'dob',
 			age: ['dob', function(dob) {
-				return 'I dunno you work it out using ' + dob;
+				var dobSplit = dob.split('/');
+				var year = parseInt(dobSplit[dobSplit.length - 1], 10);
+				var fullyear = (year < 15 ? 2000 : 1900) + year
+				return 'Roughly ' + (2014 - fullyear);
+			}],
+			starSign: ['dob', function(dob) {
+				var dobSplit = dob.split('/');
+				var month = parseInt(dobSplit[1], 10);
+				return month < 7 ? 'early' : 'late';
 			}]
 		};
 		var dynamic = {};
@@ -35,22 +44,28 @@
 				var cb = map[item].pop();
 				var deps = map[item];
 				deps.forEach(function(dep) {
-					dynamic[dep] = {
+					if(!dynamic[dep]) {
+						dynamic[dep] = [];
+					}
+					dynamic[dep].push({
 						prop: prop,
 						deps: deps,
 						cb: cb
-					};
+					});
 				});
 			}
 		});
 		function updateAllDynamics() {
 			var processedDepSignatures = [];
 			Object.keys(dynamic).forEach(function(triggerDep) {
-				var sig = dynamic[triggerDep].prop;
-				if(processedDepSignatures.indexOf(sig) < 0) {
-					updateDynamic(dynamic[triggerDep]);
-					processedDepSignatures.push(sig);
-				}
+				dynamic[triggerDep].forEach(function(depMap) {
+					var sig = depMap.prop;
+					if(processedDepSignatures.indexOf(sig) < 0) {
+						console.log(depMap);
+						updateDynamic(depMap);
+						processedDepSignatures.push(sig);
+					}
+				});
 			});
 		}
 		function updateDynamic(dyn) {
@@ -78,11 +93,13 @@
 			changes.forEach(function(change) {
 				var prop = change.name;
 				if(dynamic[prop]) {
-					var sig = dynamic[prop].prop;
-					if(processedDepSignatures.indexOf(sig) < 0) {
-						updateDynamic(dynamic[prop]);
-						processedDepSignatures.push(sig);
-					}
+					dynamic[prop].forEach(function(depMap) {
+						var sig = depMap.prop;
+						if(processedDepSignatures.indexOf(sig) < 0) {
+							updateDynamic(depMap);
+							processedDepSignatures.push(sig);
+						}
+					});
 				}
 				$('.'+prop).text(viewModel[prop]);
 			});
