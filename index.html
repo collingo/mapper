@@ -1,15 +1,15 @@
 <html>
 <head>
-	<script src="https://cdn.firebase.com/js/client/1.0.21/firebase.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+	<script src="firebase.js"></script>
+	<script src="jquery.min.js"></script>
 </head>
 <body>
 	<h1>App</h1>
-	<h2 class='username'></h2>
-	<p class='userMsg'></p>
-	<p class='dob'></p>
-	<p class='age'></p>
-	<p class='starSign'></p>
+	<h2 data='username'></h2>
+	<p data='userMsg'></p>
+	<p data='dob'></p>
+	<p data='age'></p>
+	<p data='starSign'></p>
 	<script>
   		var fb = new Firebase("https://blinding-fire-3623.firebaseio.com/");
 		var map = {
@@ -32,78 +32,102 @@
 				return month < 7 ? 'early' : 'late';
 			}]
 		};
-		var dynamic = {};
-		var viewModel = {};
-		Object.keys(map).forEach(function(item) {
-			if(typeof map[item] === 'string') {
-				fb.child(item).once('value', function(snapshot) {
-					viewModel[item] = snapshot.val();
-				});
-			} else {
-				var prop = item;
-				var cb = map[item].pop();
-				var deps = map[item];
-				deps.forEach(function(dep) {
-					if(!dynamic[dep]) {
-						dynamic[dep] = [];
-					}
-					dynamic[dep].push({
-						prop: prop,
-						deps: deps,
-						cb: cb
-					});
-				});
-			}
-		});
-		function updateAllDynamics() {
-			var processedDepSignatures = [];
-			Object.keys(dynamic).forEach(function(triggerDep) {
-				dynamic[triggerDep].forEach(function(depMap) {
-					var sig = depMap.prop;
-					if(processedDepSignatures.indexOf(sig) < 0) {
-						console.log(depMap);
-						updateDynamic(depMap);
-						processedDepSignatures.push(sig);
-					}
-				});
-			});
+
+		function RelationalBinder(map) {
+			this.map = map;
+			this.viewModel = {};
+			this.dependencyMap = {};
 		}
-		function updateDynamic(dyn) {
-			var depFetches = [];
-			var cb = dyn.cb;
-			var prop = dyn.prop;
-			var deps = dyn.deps;
-			deps.forEach(function(dep) {
-				var def = $.Deferred();
-				fb.child(dep).once('value', function(snapshot) {
-					def.resolve(snapshot.val());
-				});
-				depFetches.push(def);
-			});
-			$.when.apply($.when, depFetches).done(function() {
-				viewModel[prop] = cb.apply(cb, arguments);
-			});			
-		}
-		updateAllDynamics();
-		fb.on('child_changed', function(snapshot) {
-			viewModel[snapshot.name()] = snapshot.val();
-		});
-		Object.observe(viewModel, function(changes) {
-			var processedDepSignatures = [];
-			changes.forEach(function(change) {
-				var prop = change.name;
-				if(dynamic[prop]) {
-					dynamic[prop].forEach(function(depMap) {
-						var sig = depMap.prop;
-						if(processedDepSignatures.indexOf(sig) < 0) {
-							updateDynamic(depMap);
-							processedDepSignatures.push(sig);
-						}
-					});
+		RelationalBinder.prototype = {
+			constructor: RelationalBinder,
+			init: function() {
+				this.processMap();
+				this.processCalculatedProperties();
+				this.bind();
+			},
+			processMap: function() {
+				Object.keys(this.map)
+					.forEach(this.processMapping.bind(this));
+			},
+			processMapping: function(property) {
+				var mapping = this.map[property];
+				if(typeof mapping === 'string') {
+					fb.child(property).once('value', this.setPropertyFromSnapshot.bind(this, property));
+				} else {
+					var callback = mapping.pop();
+					mapping.forEach(this.registerDependency.bind(this, {
+						prop: property,
+						cb: callback,
+						deps: mapping
+					}));
 				}
-				$('.'+prop).text(viewModel[prop]);
-			});
-		});
+			},
+			setPropertyFromSnapshot: function(property, snapshot) {
+				this.viewModel[property] = snapshot.val();
+				this.updatePropertyInView(property, this.viewModel[property]);
+			},
+			updatePropertyInView: function(property, value) {
+				$('[data='+property+']').text(value);
+			},
+			registerDependency: function(relationship, dependency) {
+				if(!this.dependencyMap[dependency]) {
+					this.dependencyMap[dependency] = [];
+				}
+				this.dependencyMap[dependency].push(relationship);
+			},
+			processCalculatedProperties: function() {
+				var processed = [];
+				Object.keys(this.dependencyMap)
+					.forEach(this.processDependency.bind(this, processed));
+			},
+			processDependency: function(processed, dep) {
+				this.dependencyMap[dep].forEach(this.processDependencyRelationship.bind(this, processed));
+			},
+			processDependencyRelationship: function(processed, relationship) {
+				var sig = relationship.prop;
+				if(processed.indexOf(sig) < 0) {
+					this.updateDependency(relationship);
+					processed.push(sig);
+				}
+			},
+			updateDependency: function(relationship) {
+				$.when.apply($.when, relationship.deps.map(this.fetchValue.bind(this))).done(this.applyDependency.bind(this, relationship));
+			},
+			fetchValue: function(property) {
+				var promise = $.Deferred();
+				fb.child(property).once('value', this.resolvePromiseWithSnapshot.bind(this, promise));
+				return promise;
+			},
+			resolvePromiseWithSnapshot: function(promise, snapshot) {
+				promise.resolve(snapshot.val());
+			},
+			applyDependency: function(relationship) {
+				var args = Array.prototype.slice.call(arguments);
+				args.shift();
+				this.viewModel[relationship.prop] = relationship.cb.apply(this, args);
+				this.updatePropertyInView(relationship.prop, this.viewModel[relationship.prop]);
+			},
+			bind: function() {
+				fb.on('child_changed', this.onChildChanged.bind(this));
+				Object.observe(this.viewModel, this.onViewModelChange.bind(this));
+			},
+			onChildChanged: function(snapshot) {
+				this.viewModel[snapshot.name()] = snapshot.val();
+			},
+			onViewModelChange: function(changes) {
+				var processed = [];
+				changes.forEach(this.processViewModelChange.bind(this, processed));
+			},
+			processViewModelChange: function(processed, change) {
+				var prop = change.name;
+				if(this.dependencyMap[prop]) {
+					this.dependencyMap[prop].forEach(this.processDependencyRelationship.bind(this, processed));
+				}
+				this.updatePropertyInView(prop, this.viewModel[prop]);
+			}
+		};
+		var rb = new RelationalBinder(map);
+		rb.init();
 	</script>
 </body>
 </html>
