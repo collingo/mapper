@@ -11,7 +11,6 @@
 	<p data='age'></p>
 	<p data='starSign'></p>
 	<script>
-  		var fb = new Firebase("https://blinding-fire-3623.firebaseio.com/");
 		var map = {
 			username: 'user',
 			firstname: 'firstname',
@@ -33,7 +32,29 @@
 			}]
 		};
 
-		function RelationalBinder(map) {
+		function FirebaseAdaptor(url) {
+			this.baseref = new Firebase(url);
+		}
+		FirebaseAdaptor.prototype = {
+			constructor: FirebaseAdaptor,
+			once: function(property) {
+				var promise = $.Deferred();
+				this.baseref.child(property).once('value', this._resolvePromiseWithSnapshotValue.bind(this, promise));
+				return promise;
+			},
+			onChange: function(callback) {
+				this.baseref.on('child_changed', this._callCallbackWithSnapshotValue.bind(this, callback));
+			},
+			_resolvePromiseWithSnapshotValue: function(promise, snapshot) {
+				promise.resolve(snapshot.val());
+			},
+			_callCallbackWithSnapshotValue: function(callback, snapshot) {
+				callback(snapshot.name(), snapshot.val());
+			}
+		};
+
+		function RelationalBinder(store, map) {
+			this.store = store;
 			this.map = map;
 			this.viewModel = {};
 			this.dependencyMap = {};
@@ -52,7 +73,7 @@
 			processMapping: function(property) {
 				var mapping = this.map[property];
 				if(typeof mapping === 'string') {
-					fb.child(property).once('value', this.setPropertyFromSnapshot.bind(this, property));
+					this.store.once(property).then(this.setProperty.bind(this, property));
 				} else {
 					var callback = mapping.pop();
 					mapping.forEach(this.registerDependency.bind(this, {
@@ -62,9 +83,9 @@
 					}));
 				}
 			},
-			setPropertyFromSnapshot: function(property, snapshot) {
-				this.viewModel[property] = snapshot.val();
-				this.updatePropertyInView(property, this.viewModel[property]);
+			setProperty: function(property, value) {
+				this.viewModel[property] = value;
+				this.updatePropertyInView(property, value);
 			},
 			updatePropertyInView: function(property, value) {
 				$('[data='+property+']').text(value);
@@ -91,15 +112,8 @@
 				}
 			},
 			updateDependency: function(relationship) {
-				$.when.apply($.when, relationship.deps.map(this.fetchValue.bind(this))).done(this.applyDependency.bind(this, relationship));
-			},
-			fetchValue: function(property) {
-				var promise = $.Deferred();
-				fb.child(property).once('value', this.resolvePromiseWithSnapshot.bind(this, promise));
-				return promise;
-			},
-			resolvePromiseWithSnapshot: function(promise, snapshot) {
-				promise.resolve(snapshot.val());
+				$.when.apply($.when, relationship.deps.map(this.store.once.bind(this.store)))
+					.done(this.applyDependency.bind(this, relationship));
 			},
 			applyDependency: function(relationship) {
 				var args = Array.prototype.slice.call(arguments);
@@ -108,11 +122,11 @@
 				this.updatePropertyInView(relationship.prop, this.viewModel[relationship.prop]);
 			},
 			bind: function() {
-				fb.on('child_changed', this.onChildChanged.bind(this));
+				this.store.onChange(this.onChange.bind(this));
 				Object.observe(this.viewModel, this.onViewModelChange.bind(this));
 			},
-			onChildChanged: function(snapshot) {
-				this.viewModel[snapshot.name()] = snapshot.val();
+			onChange: function(name, value) {
+				this.viewModel[name] = value;
 			},
 			onViewModelChange: function(changes) {
 				var processed = [];
@@ -126,7 +140,8 @@
 				this.updatePropertyInView(prop, this.viewModel[prop]);
 			}
 		};
-		var rb = new RelationalBinder(map);
+		var store = new FirebaseAdaptor("https://blinding-fire-3623.firebaseio.com/");
+		var rb = new RelationalBinder(store, map);
 		rb.init();
 	</script>
 </body>
