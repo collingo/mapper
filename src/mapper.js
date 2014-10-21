@@ -16,8 +16,7 @@ Mapper.prototype = {
     return this.viewModel;
 	},
 	processMap: function() {
-		Object.keys(this.map)
-			.forEach(this.processMapping.bind(this));
+		Object.keys(this.map).forEach(this.processMapping.bind(this));
 	},
 	processMapping: function(property) {
 		var mapping = this.map[property];
@@ -32,9 +31,12 @@ Mapper.prototype = {
 			}));
 		}
 	},
-	setProperty: function(property, value) {
-		this.viewModel[property] = value;
-	},
+  getProperty: function(property) {
+    return this.viewModel[property];
+  },
+  setProperty: function(property, value) {
+    this.viewModel[property] = value;
+  },
 	registerDependency: function(relationship, dependency) {
 		if(!this.dependencyMap[dependency]) {
 			this.dependencyMap[dependency] = [];
@@ -43,8 +45,7 @@ Mapper.prototype = {
 	},
 	processCalculatedProperties: function() {
 		var processed = [];
-		Object.keys(this.dependencyMap)
-			.forEach(this.processDependency.bind(this, processed));
+		Object.keys(this.dependencyMap).forEach(this.processDependency.bind(this, processed));
 	},
 	processDependency: function(processed, dep) {
 		this.dependencyMap[dep].forEach(this.processDependencyRelationship.bind(this, processed));
@@ -52,15 +53,15 @@ Mapper.prototype = {
 	processDependencyRelationship: function(processed, relationship) {
 		var sig = relationship.prop;
 		if(processed.indexOf(sig) < 0) {
-			this.initDependency(relationship);
+			this.initDependent(relationship);
 			processed.push(sig);
 		}
 	},
-	initDependency: function(relationship) {
+	initDependent: function(relationship) {
 		Q.all(relationship.deps.map(this.store.once.bind(this.store)))
-			.done(this.applyDependency.bind(this, relationship));
+			.done(this.setDependent.bind(this, relationship));
 	},
-	applyDependency: function(relationship, dependencyValues) {
+	setDependent: function(relationship, dependencyValues) {
 		this.viewModel[relationship.prop] = relationship.cb.apply(this, dependencyValues);
 	},
 	bind: function() {
@@ -72,13 +73,11 @@ Mapper.prototype = {
 	},
 	onViewModelChange: function(path, type, oldValue, newValue) {
 		if(this.dependencyMap[path]) {
-			this.dependencyMap[path].forEach(this.updateDependency.bind(this));
+			this.dependencyMap[path].forEach(this.updateDependent.bind(this));
 		}
 	},
-  updateDependency: function(relationship) {
-    this.applyDependency(relationship, relationship.deps.map(function(prop) {
-      return this.viewModel[prop];
-    }.bind(this)));
+  updateDependent: function(relationship) {
+    this.setDependent(relationship, relationship.deps.map(this.getProperty.bind(this)));
   }
 };
 if(typeof module !== 'undefined' && module.exports) {
