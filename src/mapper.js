@@ -1,3 +1,5 @@
+var observer = require('observer');
+
 function Mapper(store, map) {
 	this.store = store;
 	this.map = map;
@@ -68,7 +70,7 @@ Mapper.prototype = {
 	},
 	bind: function() {
 		this.store.onChange(this.onChange.bind(this));
-		Object.observe(this.viewModel, this.onViewModelChange.bind(this));
+		observer(this.viewModel, this.onViewModelChange.bind(this));
 	},
 	onChange: function(name, value) {
 		this.viewModel[name] = value;
