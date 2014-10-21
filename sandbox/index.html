@@ -1,0 +1,41 @@
+<html>
+<head>
+	<script src="jquery.min.js"></script>
+	<script src="firebase.js"></script>
+	<script src="mapper-firebase-adaptor.js"></script>
+	<script src="../src/mapper.js"></script>
+</head>
+<body>
+	<h1>App</h1>
+	<h2 data='username'></h2>
+	<p data='userMsg'></p>
+	<p data='dob'></p>
+	<p data='age'></p>
+	<p data='starSign'></p>
+	<script>
+		var map = {
+			username: 'user',
+			firstname: 'firstname',
+			lastname: 'lastname',
+			userMsg: ['firstname', 'lastname', function(firstname, lastname) {
+				return 'Welcome ' + firstname + ' ' + lastname;
+			}],
+			dob: 'dob',
+			age: ['dob', function(dob) {
+				var dobSplit = dob.split('/');
+				var year = parseInt(dobSplit[dobSplit.length - 1], 10);
+				var fullyear = (year < 15 ? 2000 : 1900) + year
+				return 'Roughly ' + (2014 - fullyear);
+			}],
+			starSign: ['dob', function(dob) {
+				var dobSplit = dob.split('/');
+				var month = parseInt(dobSplit[1], 10);
+				return month < 7 ? 'early' : 'late';
+			}]
+		};
+		var store = new FirebaseAdaptor("https://blinding-fire-3623.firebaseio.com/");
+		var rb = new Mapper(store, map);
+		rb.init();
+	</script>
+</body>
+</html>
