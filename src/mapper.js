@@ -12,6 +12,7 @@ Mapper.prototype = {
 		this.processMap();
 		this.processCalculatedProperties();
 		this.bind();
+    return this.viewModel;
 	},
 	processMap: function() {
 		Object.keys(this.map)
@@ -32,10 +33,6 @@ Mapper.prototype = {
 	},
 	setProperty: function(property, value) {
 		this.viewModel[property] = value;
-		this.updatePropertyInView(property, value);
-	},
-	updatePropertyInView: function(property, value) {
-		$('[data='+property+']').text(value);
 	},
 	registerDependency: function(relationship, dependency) {
 		if(!this.dependencyMap[dependency]) {
@@ -66,7 +63,6 @@ Mapper.prototype = {
 		var args = Array.prototype.slice.call(arguments);
 		args.shift();
 		this.viewModel[relationship.prop] = relationship.cb.apply(this, args);
-		this.updatePropertyInView(relationship.prop, this.viewModel[relationship.prop]);
 	},
 	bind: function() {
 		this.store.onChange(this.onChange.bind(this));
@@ -84,7 +80,6 @@ Mapper.prototype = {
 		if(this.dependencyMap[prop]) {
 			this.dependencyMap[prop].forEach(this.processDependencyRelationship.bind(this, processed));
 		}
-		this.updatePropertyInView(prop, this.viewModel[prop]);
 	}
 };
 if(typeof module !== 'undefined' && module.exports) {
