@@ -1,4 +1,5 @@
 var observer = require('observer');
+var Q = require('q');
 
 function Mapper(store, map) {
 	this.store = store;
@@ -51,18 +52,16 @@ Mapper.prototype = {
 	processDependencyRelationship: function(processed, relationship) {
 		var sig = relationship.prop;
 		if(processed.indexOf(sig) < 0) {
-			this.updateDependency(relationship);
+			this.initDependency(relationship);
 			processed.push(sig);
 		}
 	},
-	updateDependency: function(relationship) {
-		$.when.apply($.when, relationship.deps.map(this.store.once.bind(this.store)))
+	initDependency: function(relationship) {
+		Q.all(relationship.deps.map(this.store.once.bind(this.store)))
 			.done(this.applyDependency.bind(this, relationship));
 	},
-	applyDependency: function(relationship) {
-		var args = Array.prototype.slice.call(arguments);
-		args.shift();
-		this.viewModel[relationship.prop] = relationship.cb.apply(this, args);
+	applyDependency: function(relationship, dependencyValues) {
+		this.viewModel[relationship.prop] = relationship.cb.apply(this, dependencyValues);
 	},
 	bind: function() {
 		this.store.onChange(this.onChange.bind(this));
@@ -71,16 +70,16 @@ Mapper.prototype = {
 	onChange: function(name, value) {
 		this.viewModel[name] = value;
 	},
-	onViewModelChange: function(changes) {
-		var processed = [];
-		changes.forEach(this.processViewModelChange.bind(this, processed));
-	},
-	processViewModelChange: function(processed, change) {
-		var prop = change.name;
-		if(this.dependencyMap[prop]) {
-			this.dependencyMap[prop].forEach(this.processDependencyRelationship.bind(this, processed));
+	onViewModelChange: function(path, type, oldValue, newValue) {
+		if(this.dependencyMap[path]) {
+			this.dependencyMap[path].forEach(this.updateDependency.bind(this));
 		}
-	}
+	},
+  updateDependency: function(relationship) {
+    this.applyDependency(relationship, relationship.deps.map(function(prop) {
+      return this.viewModel[prop];
+    }.bind(this)));
+  }
 };
 if(typeof module !== 'undefined' && module.exports) {
   module.exports = Mapper;
