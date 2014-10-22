@@ -3,22 +3,18 @@
 	<script src="jquery.min.js"></script>
 	<script src="firebase.js"></script>
 	<script src="mapper-firebase-adaptor.js"></script>
-	<script src="../src/mapper.js"></script>
+	<script src="build.js"></script>
 </head>
 <body>
-	<h1>App</h1>
-	<h2 data='username'></h2>
-	<p data='userMsg'></p>
-	<p data='dob'></p>
-	<p data='age'></p>
-	<p data='starSign'></p>
+	<h1>Open your console to see the viewModel</h1>
 	<script>
 		var map = {
 			username: 'user',
 			firstname: 'firstname',
 			lastname: 'lastname',
-			userMsg: ['firstname', 'lastname', function(firstname, lastname) {
-				return 'Welcome ' + firstname + ' ' + lastname;
+			town: 'town',
+			userMsg: ['firstname', 'lastname', 'town', function(firstname, lastname, town) {
+				return 'Welcome ' + firstname + ' ' + lastname + ' from ' + town;
 			}],
 			dob: 'dob',
 			age: ['dob', function(dob) {
@@ -34,8 +30,11 @@
 			}]
 		};
 		var store = new FirebaseAdaptor("https://blinding-fire-3623.firebaseio.com/");
-		var rb = new Mapper(store, map);
-		rb.init();
+		var mapper = new Mapper(store, map, true);
+		mapper.getViewModel().then(function(viewModel) {
+			window.viewModel = viewModel;
+			console.log('viewModel available on window.viewModel');
+		});
 	</script>
 </body>
 </html>

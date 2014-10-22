@@ -81,6 +81,5 @@ Mapper.prototype = {
     }
   }
 };
-if(typeof module !== 'undefined' && module.exports) {
-  module.exports = Mapper;
-}
+
+module.exports = Mapper;
