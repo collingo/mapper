@@ -82,42 +82,42 @@ describe('mapper', function() {
     sandbox.restore();
   });
 
-  describe('when initialised', function() {
+  describe('when getViewModel resolves', function() {
 
     it('should set one to one mappings', function(done) {
       var mapper = new Mapper(store, mapOneToOne);
-      var viewModel = mapper.init();
-      setTimeout(function() {
+      var viewModelPromise = mapper.getViewModel();
+      viewModelPromise.then(function(viewModel) {
         expect(viewModel.forename).to.equal('John');
         done();
-      }, 0);
+      });
     });
 
     it('should set dependent mappings', function(done) {
       var mapper = new Mapper(store, mapDependency);
-      var viewModel = mapper.init();
-      setTimeout(function() {
+      var viewModelPromise = mapper.getViewModel();
+      viewModelPromise.then(function(viewModel) {
         expect(viewModel.fullname).to.equal('John Smith');
         done();
-      }, 0);
+      });
     });
 
     it('should allow multiple dependent mappings on one property', function(done) {
       var mapper = new Mapper(store, mapMultiDependency);
-      var viewModel = mapper.init();
-      setTimeout(function() {
+      var viewModelPromise = mapper.getViewModel();
+      viewModelPromise.then(function(viewModel) {
         expect(viewModel.message).to.equal('Hello John');
         done();
-      }, 0);
+      });
     });
 
     it('should allow nested dependency mappings', function(done) {
       var mapper = new Mapper(store, mapNestedDependency);
-      var viewModel = mapper.init();
-      setTimeout(function() {
+      var viewModelPromise = mapper.getViewModel();
+      viewModelPromise.then(function(viewModel) {
         expect(viewModel.message).to.equal('Hello John Smith');
         done();
-      }, 0);
+      });
     });
 
   });
@@ -125,49 +125,43 @@ describe('mapper', function() {
   describe('when data changes in the store', function() {
 
     it('should update one to one mappings directly', function(done) {
-      var mapper = new Mapper(store, mapOneToOne);
-      var viewModel = mapper.init();
-      setTimeout(function() {
+      var mapper = new Mapper(store, mapOneToOne, true);
+      var viewModelPromise = mapper.getViewModel();
+      viewModelPromise.then(function(viewModel) {
         storeOnChange('forename', 'Tom');
         expect(viewModel.forename).to.equal('Tom');
         done();
-      }, 0);
+      });
     });
 
     it('should update dependent mappings', function(done) {
-      var mapper = new Mapper(store, mapDependency);
-      var viewModel = mapper.init();
-      setTimeout(function() {
+      var mapper = new Mapper(store, mapDependency, true);
+      var viewModelPromise = mapper.getViewModel();
+      viewModelPromise.then(function(viewModel) {
         storeOnChange('forename', 'Tom');
-        setTimeout(function() {
-          expect(viewModel.fullname).to.equal('Tom Smith');
-          done();
-        }, 0);
-      }, 0);
+        expect(viewModel.fullname).to.equal('Tom Smith');
+        done();
+      });
     });
 
     it('should update multiple dependent mappings', function(done) {
-      var mapper = new Mapper(store, mapMultiDependency);
-      var viewModel = mapper.init();
-      setTimeout(function() {
+      var mapper = new Mapper(store, mapMultiDependency, true);
+      var viewModelPromise = mapper.getViewModel();
+      viewModelPromise.then(function(viewModel) {
         storeOnChange('forename', 'Tom');
-        setTimeout(function() {
-          expect(viewModel.message).to.equal('Hello Tom');
-          done();
-        }, 0);
-      }, 0);
+        expect(viewModel.message).to.equal('Hello Tom');
+        done();
+      });
     });
 
     it('should update nested dependency mappings', function(done) {
-      var mapper = new Mapper(store, mapNestedDependency);
-      var viewModel = mapper.init();
-      setTimeout(function() {
+      var mapper = new Mapper(store, mapNestedDependency, true);
+      var viewModelPromise = mapper.getViewModel();
+      viewModelPromise.then(function(viewModel) {
         storeOnChange('forename', 'Tom');
-        setTimeout(function() {
-          expect(viewModel.message).to.equal('Hello Tom Smith');
-          done();
-        }, 0);
-      }, 0);
+        expect(viewModel.message).to.equal('Hello Tom Smith');
+        done();
+      });
     });
 
   });
