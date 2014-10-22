@@ -57,9 +57,9 @@ Mapper.prototype = {
     this.dependencyMap[dependency].push(relationship);
   },
   initDependants: function() {
-    Object.keys(this.dependencyMap).forEach(this.processDependency.bind(this));
+    Object.keys(this.dependencyMap).forEach(this.setDependents.bind(this));
   },
-  processDependency: function(dep) {
+  setDependents: function(dep) {
     this.dependencyMap[dep].forEach(this.setDependent.bind(this));
   },
   setDependent: function(relationship) {
