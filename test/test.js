@@ -122,7 +122,7 @@ describe('mapper', function() {
 
   });
   
-  describe('when data changes in the store', function() {
+  describe('when updateable and data changes in the store', function() {
 
     it('should update one to one mappings directly', function(done) {
       var mapper = new Mapper(store, mapOneToOne, true);
