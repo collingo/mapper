@@ -1,6 +1,6 @@
-# Mapper
-
 [![Build Status](https://travis-ci.org/collingo/mapper.svg)](https://travis-ci.org/collingo/mapper)
+
+# Mapper
 
 Builds a ViewModel (simple JS object) from a live data store (such as Firebase) and a mapping definition. Optionally listens for change events on the store and updates the ViewModel.
 
