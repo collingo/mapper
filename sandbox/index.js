@@ -1,4 +1,4 @@
-var FBStore = require('./mapper-firebase-adaptor');
+var FBStore = require('mapper-firebase');
 var Mapper = require('../src/mapper');
 
 var map = {
